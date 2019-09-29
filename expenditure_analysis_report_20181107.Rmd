@@ -1,0 +1,164 @@
+---
+title: "Analysis of Total Expenditures for Materials"
+author: "Michele Claibourn and Clay Ford"
+date: "November 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Request from Donna Tolson
+
+> I’d like you to run regressions to see where we land among the various peer groups, and if possible, to forecast what the model would predict our expenditures should be, compared to what they are. 
+
+Donna provided a 2017 spreadsheet with requested outcomes/dependent variables and inputs/independent variables highlighted. The initial analysis begins with the **collections expenditures** as the highest priority outcome; additional outcome variables can be assessed given more time.
+
+In what follows, estimate the amount spent on materials as a function of the number of faculty, the number of full time students, and the number of full time graduate students. Donna suggested number of faculty, number of full-time students, and number of PhDs awarded as predictors; model diagnostics revealed that the number of graduate students was a consistently stronger predictor of expenditures than number of PhDs awarded. As the predictive value of the model depends on the ability of the model to explain variation in expenditures, we chose to include the more strongly related of these two highly correlated features.
+
+The same model is estimated on multiple samples of institutions: (1) The full set of ARL institutions (123 observations), (2) only US institutions (99), (3) SCHEV-identified peer institutions (27), (4) library-identified ARL peer institutions (30), (5) and a small sample of "scholarly infrastructure" peers (9). In each case the model is estimated on the sample excluding UVA. The model is then used to estimate expenditures for UVA, given the number of faculty, students, and graduate students; this predicted value is provided along with the actual UVA collection expenditures.
+
+In addition, a histogram of the distribution of the residuals (predicted values minus actual values for all observations) are graphed and the inidividual residuals are plotted; UVA is identified by an orange dot.
+
+```{r echo=FALSE, message=FALSE}
+setwd("~/Box Sync/mpc/DataServices/LibraryWork/ARL_analysis_2018/")
+library(tidyverse)
+library(scales)
+
+arl <- readRDS("arl.Rds")
+uva <- filter(arl, inam == "VIRGINIA")[1,]
+uva_actual <- uva$explm
+compare <- function(predicted, actual){
+  cat("Actual:   ", dollar(uva_actual), 
+      "\nPredicted:", dollar(predicted), 
+      "\nDiff:     ", dollar(uva_actual-predicted))
+  }
+
+modelsum <- function(adjR2){
+  cat("Adjusted R^2:", round(adjR2, 3))
+}
+
+comparePlot <- function(model, predicted){
+  par(mfrow=c(1,2))
+  mod.res <- resid(model)
+  x1 <- uva_actual - predicted
+  hist(mod.res, breaks=15, xlab="Actual-Predicted Value", main="Histogram of Residuals", col="gray90")
+  points(x1, 0, col="orange", pch=19)
+  plot(mod.res, ylab="Actual-Predicted Value", main="Plot of Residuals")
+  abline(h=0)
+  points(x1, col="orange", pch=19)
+
+}
+
+```
+
+
+## All ARL
+Based on the full set of ARL institutions, UVA's collection budget is about $400,000 less than predicted.
+```{r }
+mod1 <- lm(explm ~ gradstu + fac + totstu, 
+           data = arl, 
+           subset = subset == "all_arl" & inam != "VIRGINIA")
+pred1 <- predict(mod1, newdata = uva)
+modelsum(summary(mod1)$adj.r.squared)
+compare(pred1)
+
+```
+
+```{r echo=FALSE, warning=FALSE}
+comparePlot(mod1, pred1)
+
+```
+
+For the full ARL sample, the model accounts for `r percent(summary(mod1)$adj.r.squared, 2, digits = 0)` of the variation in expenditures. Harvard, Princeton, Yale, and the Library of Congress are the notable outliers in this sample, evident in the highly positive residuals in the second graph.
+
+
+## US Only
+
+Restricting the estimation sample to only US insitutions, the collections expenditures for UVA are about $14,000 more than predicted.
+```{r }
+mod2 <- lm(explm ~ gradstu + fac + totstu, 
+           data = arl, 
+           subset = subset == "us_only" & inam != "VIRGINIA")
+pred2 <- predict(mod2, newdata = uva)
+modelsum(summary(mod2)$adj.r.squared)
+compare(pred2)
+
+```
+
+```{r echo=FALSE, warning=FALSE}
+comparePlot(mod2, pred2)
+
+```
+
+For the US-only sample, the model accounts for `r percent(summary(mod2)$adj.r.squared, 2, digits = 0)` of the variation in expenditures. Harvard, Princeton, and Yale are, again, the notable outliers evident in the second figure.
+
+
+## SCHEV UVA
+
+Restricting the sample still further to institutions identified by SCHEV as peer institutions for UVA, the UVA collections budget is about $1.5M less than predicted given UVA's size.
+```{r }
+mod3 <- lm(explm ~ gradstu + fac + totstu, 
+           data = arl, 
+           subset = subset == "schev_uva" & inam != "VIRGINIA")
+pred3 <- predict(mod3, newdata = uva)
+modelsum(summary(mod3)$adj.r.squared)
+compare(pred3)
+
+```
+
+```{r echo=FALSE, warning=FALSE}
+comparePlot(mod3, pred3)
+
+```
+
+For the SCHEV peer sample, the model accounts for `r percent(summary(mod3)$adj.r.squared, 2, digits = 0)` of the variation in expenditures. No institutions register as outliers in this smaller sample. Importantly, only the number of graduate students is a significant predictor in the model estimated on the 26 SCHEV peer institutiions (all three predictors were significantly related to expenditures in the larger samples above).
+
+
+## ARL peers
+
+Using a similarly restricted sample, the 29 ARL peer institusions identified by the Library, UVA's collection budget is nearly $8.7M less than predicted.
+```{r }
+mod4 <- lm(explm ~ gradstu + fac + totstu, 
+           data = arl, 
+           subset = subset == "arl_peers" & inam != "VIRGINIA")
+modelsum(summary(mod4)$adj.r.squared)
+pred4 <- predict(mod4, newdata = uva)
+compare(pred4)
+
+```
+
+```{r echo=FALSE, warning=FALSE}
+comparePlot(mod4, pred4)
+
+```
+
+For the SCHEV peer sample, the model accounts for only `r percent(summary(mod4)$adj.r.squared, 2, digits = 0)` of the variation in expenditures; that is, these predictors are not particularly related to materials expenditures. Here, again, Harvard and Yale stand out as notable outliers. In addition, the residual plot indicates non-constant variances. This model requires additional assessment and its predictions should be used with caution.
+
+## Scholarly Infrastructure peers
+
+For the model for the scholarly infrastructure sample, UVA's collection expenditures are about $1.3M less than predicted.
+```{r }
+mod5 <- lm(explm ~ gradstu + fac + totstu, 
+           data = arl, 
+           subset = subset == "scholarly_infrastructure_peers" & inam != "VIRGINIA")
+modelsum(summary(mod5)$adj.r.squared)
+pred5 <- predict(mod5, newdata = uva)
+compare(pred5)
+
+```
+
+```{r echo=FALSE, warning=FALSE}
+comparePlot(mod5, pred5)
+
+```
+
+This subsample is very small, with only 8 peers on which to estimate a model. Only number of graduate students bears any statistically discernible relationship to expenditures among this set. The model accounts for `r percent(summary(mod5)$adj.r.squared, 2, digits = 0)` of the variation in expenditures. 
+
+
+## Conclusions
+
+Based on this model, the UVA Library collection budget is less than expected relative to ARL institutions for all subsamples except the "US-only" subsample. That said, this model incorporates a very limited set of predictors and may not represent the most appropriate model specification available. We considered multiple model specifications among the seven input variables initially identified by Donna; in a 2015 version of a similar analysis, we included additional variables as well (e.g., volumes, inclusion of a medical or law library). Such additional inputs were not considered here given time constraints.
+
+With additional time, we could provide a fuller assessment of the regression model and subsamples, repeat the analysis for additional outcomes (total expenditures, total salary expenditures, staff salary expenditures), and incorporate data from multiple years to increase robustness or potentially examine change over time.
