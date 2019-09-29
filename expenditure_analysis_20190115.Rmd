@@ -1,0 +1,68 @@
+---
+title: "Model for Total and Material Expenditures"
+author: "Michele Claibourn and Clay Ford"
+date: "January 15, 2018"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Add text here
+
+```{r echo=FALSE, message=FALSE}
+# load workspace
+load("arl.Rdata")
+library(scales)
+
+compare <- function(predicted, actual){
+  cat("Predicted:", dollar(predicted), "\nActual:   ", dollar(actual))
+  }
+
+comparePlot <- function(model, predicted, actual){
+  par(mfrow=c(1,2))
+  mod.res <- resid(model)
+  x1 <- predicted - actual
+  hist(mod.res, breaks=15, xlab="Actual-Predicted Value", main="Histogram of Residuals", col="gray90")
+  points(x1, 0, col="orange", pch=19)
+  plot(mod.res, ylab="Actual-Predicted Value", main="Plot of Residuals")
+  abline(h=0)
+  points(x1, col="orange", pch=19)
+
+}
+```
+
+## Initially Proposed Model
+
+Total expenditures: Add more text here
+
+```{r }
+mod_totexp <- lm(totexp/1e6 ~ initcirc + law + phdfld + msda + fac + irpgg, 
+                 data = arl_totexp)
+summary(mod_totexp)
+pred_totexp <- predict(mod_totexp, newdata = uva_totexp)
+compare(pred_totexp, uva_totexp$totexp/1e6)
+# also try msda in place of gradstu
+```
+
+```{r echo=FALSE, warning=FALSE}
+comparePlot(mod_totexp, pred_totexp, uva_totexp[["totexp"]]/1e6)
+```
+
+Materials Expenditures: add more text here
+
+```{r }
+mod_explm <- lm(explm/1e6 ~ initcirc + law + phdfld + msda + fac + irpgg, 
+                 data = arl_explm)
+summary(mod_explm)
+pred_explm <- predict(mod_explm, newdata = uva_explm)
+compare(pred_explm, uva_explm$explm/1e6)
+# also try msda in place of gradstu
+```
+
+```{r echo=FALSE, warning=FALSE}
+comparePlot(mod_explm, pred_explm, uva_explm[["explm"]]/1e6)
+```
