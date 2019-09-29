@@ -1,0 +1,141 @@
+---
+title: "Model for Total Expenditures"
+date: "January 30, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+```{r echo=FALSE, message=FALSE}
+# load workspace
+load("arl.Rdata")
+library(scales)
+library(tidyverse)
+
+compare <- function(predicted, actual){
+  cat("Predicted:", dollar(predicted), "\nActual:   ", dollar(actual))
+  }
+
+comparePlot <- function(model, predicted, actual){
+  par(mfrow=c(1,2))
+  mod.res <- resid(model)
+  x1 <- actual - predicted
+  hist(mod.res, breaks=15, xlab="Actual-Predicted Value", main="Histogram of Residuals", col="gray90")
+  points(x1, 0, col="orange", pch=19)
+  plot(mod.res, ylab="Actual-Predicted Value", main="Plot of Residuals")
+  abline(h=0)
+  points(x1, col="orange", pch=19)
+
+}
+
+arl_totexp1 <- arl_totexp %>% filter(indn < 46)
+arl_totexp2 <- arl_totexp %>% filter(indn > 5 & indn < 50)
+```
+
+# Revised Models
+Below I generate the regression model of total expenditures as a function of the number of faculty, undergraduates, graduate students, phd fields, and government grants and endowments using multiple samples of universities. As before, UVA's total expenditures continue to be under-predicted by these models (UVA's budget is bigger than the models predict).
+
+The first analysis, using all of the top ARL universities from the previous analysis, produces the best fit and the clearest evidence that four of the five independent variables have some marginally predictive relationship to budgets. 
+
+The second analysis, using only the 40 top-ranked institutions by ARL in the US, produces a weaker overall fit, with only one of the five included variables appearing related to budgets within this subsample.
+
+The third analysis, using the 40 institutions nearest to UVA in the ARL rankings (20 above and 20 below), produes the weakest overall fit, with evidence that three of the five included variables are marginally related to total expenditures.
+
+While this could change with the inclusion of the subtitute variable for research expenditures, or by incorporating more information over time, I wouldn't feel especially confident about any but the first of these models (using a slightly larger sample of institutions).
+
+## All 99 ARL Universities
+
+For comparison, the reduced regression model on all 99 of the top-ranked ARL universities.
+
+```{r }
+mod_totexp <- lm(totexp ~ fac + ugrad + gradstu + phdfld + invgrant, 
+                 data = arl_totexp)
+summary(mod_totexp)
+```
+
+The estimated model is 
+
+$$ 
+\begin{align} 
+Expenditures  = &`r dollar(mod_totexp$coefficients[[1]], 1)` + `r dollar(mod_totexp$coefficients[[2]], 1)` * faculty + `r dollar(mod_totexp$coefficients[[3]], 1)` * undergraduates + `r dollar(mod_totexp$coefficients[[4]], 1)` * graduate~students + \\
+  & `r dollar(mod_totexp$coefficients[[5]], 1)` * PhD~fields + 
+  `r dollar(mod_totexp$coefficients[[6]], 1)` * 100~thousand~in~govt~grants~investment~returns 
+\end{align}
+$$
+
+The overall model $R^2$ is a fairly robust `r round(summary(mod_totexp)$adj.r.squared, 2)`. The number of faculty, phd fields, and grants/endowments are positively and significantly related to total expenditures. The number of graduate students is marginally related to total expenditures.
+
+The predicted budget for UVA under this model is:
+
+```{r}
+pred_totexp <- predict(mod_totexp, newdata = uva_totexp)
+pred_totexp
+compare(pred_totexp, uva_totexp$totexp)
+```
+
+```{r echo=FALSE, warning=FALSE}
+comparePlot(mod_totexp, pred_totexp, uva_totexp[["totexp"]])
+```
+
+## Top 40-ranked ARL institutions in US
+
+Based on model estimated on sample of 40 highest ranked US institutions by ARL index.
+
+```{r }
+mod_totexp1 <- lm(totexp ~ fac + ugrad + gradstu + phdfld + invgrant, data = arl_totexp1)
+summary(mod_totexp1)
+```
+
+$$ 
+\begin{align} 
+Expenditures  = &`r dollar(mod_totexp1$coefficients[[1]], 1)` + `r dollar(mod_totexp1$coefficients[[2]], 1)` * faculty + `r dollar(mod_totexp1$coefficients[[3]], 1)` * undergraduates + `r dollar(mod_totexp1$coefficients[[4]], 1)` * graduate~students + \\
+  & `r dollar(mod_totexp1$coefficients[[5]], 1)` * PhD~fields + 
+  `r dollar(mod_totexp1$coefficients[[6]], 1)` * 100~thousand~in~govt~grants~investment~returns 
+\end{align}
+$$
+
+Note the more modest $R^2$ value (`r round(summary(mod_totexp1)$adj.r.squared, 2)`).  Only grants/endowments remains significantly related to total expenditures in this subsample.
+
+The UVA library budget prediction under this model:
+
+```{r}
+pred_totexp1 <- predict(mod_totexp1, newdata = uva_totexp)
+compare(pred_totexp1, uva_totexp$totexp)
+```
+
+```{r echo=FALSE, warning=FALSE}
+comparePlot(mod_totexp1, pred_totexp1, uva_totexp[["totexp"]])
+```
+
+
+## ARL Index within 20 ranks of UVA
+
+Based on model estimated on sample of 40 US institutions within 20 rankings of UVA (26th).
+
+```{r }
+mod_totexp2 <- lm(totexp ~ fac + ugrad + gradstu + phdfld + invgrant, data = arl_totexp2)
+summary(mod_totexp2)
+```
+
+$$ 
+\begin{align} 
+Expenditures  = &`r dollar(mod_totexp2$coefficients[[1]], 1)` + `r dollar(mod_totexp2$coefficients[[2]], 1)` * faculty + `r dollar(mod_totexp2$coefficients[[3]], 1)` * undergraduates + `r dollar(mod_totexp2$coefficients[[4]], 1)` * graduate~students + \\
+  & `r dollar(mod_totexp2$coefficients[[5]], 1)` * PhD~fields + 
+  `r dollar(mod_totexp2$coefficients[[6]], 1)` * 100~thousand~in~govt~grants~investment~returns 
+\end{align}
+$$
+
+The explanatory power of the model is reduced further in this subsample, with an $R^2$ of `r round(summary(mod_totexp2)$adj.r.squared, 2)`. Only grants/endowments remains a significant predictor of expenditures, though the number of undergraduates and phd fields are marginally related.
+
+The predicted UVA library budget is:
+```{r}
+pred_totexp2 <- predict(mod_totexp2, newdata = uva_totexp)
+compare(pred_totexp2, uva_totexp$totexp)
+```
+
+```{r echo=FALSE, warning=FALSE}
+comparePlot(mod_totexp2, pred_totexp2, uva_totexp[["totexp"]])
+```

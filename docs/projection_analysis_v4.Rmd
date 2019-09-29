@@ -1,0 +1,52 @@
+---
+title: "Projection for Total Expenditures"
+date: "January 30, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Five year projections
+
+Based on the first model in the expenditure analysis memo (using all 99 ARL universities), I generated 5-year budget projections. The inputs -- number of faculty, undergraduates, graduate students, phd fields, and grants/endowment monies were each projected to grow at yearly rates consistent with UVA's overall projections (faculty and graduate students at 3.5%, undergraduate students at 3%, research grants at 4%, and the number of phd fields at 1%, to generate an increase of 2 over the five year period).
+
+The graph below presents the predicted expenditures over 5 years based on the model (model) compared to expenditures based on 2% growth per year.
+
+```{r echo=FALSE, message=FALSE, include=FALSE}
+load("arl.Rdata")
+library(scales)
+library(tidyverse)
+
+project1 <- read_csv("project1.csv")
+
+mod_totexp <- lm(totexp ~ fac + ugrad + gradstu + phdfld + irpgg, 
+                 data = arl_totexp)
+summary(mod_totexp)
+pred_proj <- predict(mod_totexp, newdata = project1, interval = "confidence")
+pred_proj
+
+pred0 <- bind_cols(year = rep(2017:2022, 2), 
+                   projected = c(pred_proj[1:6], project1$total),
+                   lwr = c(pred_proj[7:12], rep(NA, 6)), 
+                   upr = c(pred_proj[13:18], rep(NA, 6)),
+                   source = rep(c("model", "cap"), each = 6))
+```
+
+```{r}
+ggplot(pred0, aes(y = projected, x = year, color = source)) + geom_line() +
+    labs(title = "5-Year Expenditure Projections",
+       subtitle = "Model-Based vs. 2% Cap")
+```
+
+The model-based prediction generates a faster rate of increase than that produced by steady 2% growth. But these predictions are probabilistic and uncertain. Adding confidence intervals to the model projections makes clear that the 2% growth budget is well within the model's uncertainty estimation.
+
+```{r}
+ggplot(pred0, aes(y = projected, x = year, color = source)) + 
+  geom_line() + geom_ribbon(aes(ymin=lwr, ymax=upr), alpha=0.2) +
+    labs(title = "5-Year Expenditure Projections",
+       subtitle = "Model-Based vs. 2% Cap")
+```
+
+Again, these are confidence intervals, not prediction interals which are both more appropriate and much wider still.
